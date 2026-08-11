@@ -1,0 +1,7 @@
+{
+  "name": "aisec",
+  "description": "Scans MCP servers, agent configs, and dependency trees for AI-specific security issues",
+  "version": "0.1.0",
+  "license": "MIT",
+  "keywords": ["security", "mcp", "sast", "sca", "agent-security"]
+}

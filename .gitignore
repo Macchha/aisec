@@ -1,0 +1,34 @@
+node_modules/
+coverage/
+*.log
+.DS_Store
+
+# Scan output. aisec-report.json is written into whatever directory was scanned,
+# so it can land here when aisec is run against itself.
+aisec-report.json
+
+# Never commit real credentials. The only sk-ant- literals in this repo are
+# deliberately fake fixtures under tests/fixtures/ and the rule docs; anything
+# matching the patterns below is by definition not one of those.
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.keystore
+credentials.json
+secrets.json
+.npmrc
+
+# Personal documents, in case this tree is ever worked on alongside one of the
+# finance or job-search projects. None of these belong in a public repo.
+*.pdf
+*.csv
+*.xlsx
+
+# Editor and OS noise
+.idea/
+.vscode/
+*.swp
+Thumbs.db

@@ -1,0 +1,16 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "aisec",
+  "description": "Security scanning for MCP servers and agent applications",
+  "owner": {
+    "name": "Madhu"
+  },
+  "plugins": [
+    {
+      "name": "aisec",
+      "description": "Scans MCP servers, agent configs, and dependency trees for AI-specific security issues",
+      "source": "./plugin",
+      "category": "security"
+    }
+  ]
+}

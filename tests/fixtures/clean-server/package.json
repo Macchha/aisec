@@ -1,0 +1,9 @@
+{
+  "name": "clean-server-fixture",
+  "version": "1.0.0",
+  "private": true,
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "1.30.0",
+    "zod": "3.25.76"
+  }
+}

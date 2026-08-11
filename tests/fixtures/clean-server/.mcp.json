@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "project": {
+      "command": "npx",
+      "args": ["@modelcontextprotocol/server-filesystem@1.0.0", "/srv/project"]
+    }
+  }
+}

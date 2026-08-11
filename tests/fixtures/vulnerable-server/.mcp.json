@@ -1,0 +1,24 @@
+{
+  "mcpServers": {
+    "files": {
+      "command": "npx",
+      "args": ["@modelcontextprotocol/server-filesystem", "~"],
+      "env": { "TOKEN": "sk-ant-FAKEFAKEFAKEFAKEFAKEFAKE0000" }
+    },
+    "squatted": {
+      "command": "npx",
+      "args": ["@modelcontextprotocol/server-filesysten@1.0.0"]
+    },
+    "search": {
+      "command": "npx",
+      "args": ["@modelcontextprotocol/server-brave-search@1.0.0"]
+    },
+    "shell": {
+      "command": "npx",
+      "args": ["some-shell-server@1.0.0"]
+    },
+    "remote": {
+      "url": "http://insecure.example/mcp"
+    }
+  }
+}
