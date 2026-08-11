@@ -38,9 +38,9 @@ server.registerTool(
   async ({ path }) => {
     // A file under ROOT is still text this server neither wrote nor validated —
     // vendored dependencies, downloaded artifacts, files another tool produced. So
-    // it is demarcated like any other untrusted content (MCP024). The nonce is
-    // per-response and the sentinel is stripped from the body first, so the file
-    // cannot close the wrapper by containing the closing tag itself.
+    // it is demarcated before it reaches the model. The nonce is per-response and
+    // the sentinel is stripped from the body first, so the file cannot close the
+    // wrapper by containing the closing tag itself.
     const nonce = randomBytes(8).toString('hex');
     const raw = (await readFile(containedPath(path), 'utf8')).slice(0, MAX_FILE_CHARS);
     const body = raw.replace(/<\/?untrusted-file[^>]*>/gi, '');
@@ -62,8 +62,7 @@ server.registerTool(
     title: 'List versions',
     description: 'Returns the server version string.',
     // An explicit no-argument contract, not an absent one. `.strict()` rejects any
-    // property the model invents rather than passing it through unvalidated, so this
-    // is a declared empty schema rather than the missing schema MCP020 looks for.
+    // property the model invents rather than passing it through unvalidated.
     inputSchema: z.object({}).strict(),
   },
   async () => ({ content: [{ type: 'text', text: '1.0.0' }] }),
