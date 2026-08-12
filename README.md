@@ -186,9 +186,38 @@ cannot run then appear in `skipped[]` rather than silently passing.
   evade them, and the model layer is nondeterministic — two scans of the same
   target can differ. The `rule`-sourced findings are the reproducible half.
 
+## SARIF output
+
+Any scanner's JSON converts to SARIF 2.1.0, for GitHub code scanning or any
+other SARIF consumer:
+
+```bash
+node plugin/scripts/scan-lockfile.mjs . | node plugin/scripts/to-sarif.mjs > aisec.sarif
+node plugin/scripts/to-sarif.mjs aisec-report.json > aisec.sarif   # or from a file
+```
+
+Severities map `HIGH → error`, `MED → warning`, `LOW → note`, and
+`WARN → warning` — `WARN` is `TRIFECTA`, a risk posture rather than something
+less severe than `LOW`, so it does not sort below it. Each rule also carries
+`security-severity`, which is what GitHub actually ranks on.
+
+**Skipped checks appear twice, on purpose.** SARIF has no first-class way to say
+"this check could not run", and the one place it does provide —
+`toolExecutionNotifications` — is ignored by most consumers including GitHub, so
+a skip put only there becomes invisible. That would silently recreate the exact
+failure this tool exists to prevent. Every skip is therefore emitted as a
+`result` under the `AISEC_SKIPPED` rule *and* as a notification.
+`run.properties` carries `findingCount` and `skippedCount` separately, so the
+two never blur.
+
+Findings about a package rather than a file — the SCA rules — use
+`logicalLocations` with `kind: "package"`, not a fabricated file path. Each
+result carries a stable `partialFingerprints.aisecFinding` so a CI consumer can
+track it across runs.
+
 ## Not in V1
 
-CI gating, SARIF output, and a standalone CLI are V1.1. V1 is the plugin.
+CI gating and a standalone CLI are V1.1. V1 is the plugin.
 
 ## Requirements
 
