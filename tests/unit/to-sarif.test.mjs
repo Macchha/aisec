@@ -95,12 +95,16 @@ describe('findings with no line', () => {
     expect(JSON.stringify(r)).not.toContain('"startLine":null');
   });
 
+  // logicalLocations hangs off a `location`, not off the result. The first version of
+  // this test asserted the wrong nesting and passed, so it encoded the bug rather than
+  // catching it; schema validation caught it instead.
   it('describes a package as a logical location, not a file path', () => {
     const [r] = results(toSarif(report({
       findings: [f({ id: 'VULN_KNOWN', file: 'lodash', line: null, source: 'rule' })],
     })));
-    expect(r.logicalLocations[0].name).toBe('lodash');
-    expect(r.logicalLocations[0].kind).toBe('package');
+    expect(r.logicalLocations).toBeUndefined();
+    expect(r.locations[0].logicalLocations[0]).toEqual({ name: 'lodash', kind: 'package' });
+    expect(r.locations[0].physicalLocation).toBeUndefined();
   });
 
   it('still treats a path-shaped file with no line as a file', () => {
@@ -108,7 +112,7 @@ describe('findings with no line', () => {
       findings: [f({ id: 'TRIFECTA', severity: 'WARN', file: '.mcp.json', line: null, source: 'rule' })],
     })));
     expect(r.locations[0].physicalLocation.artifactLocation.uri).toBe('.mcp.json');
-    expect(r.logicalLocations).toBeUndefined();
+    expect(r.locations[0].logicalLocations).toBeUndefined();
   });
 });
 
