@@ -215,9 +215,59 @@ Findings about a package rather than a file — the SCA rules — use
 result carries a stable `partialFingerprints.aisecFinding` so a CI consumer can
 track it across runs.
 
+## CI gating
+
+```bash
+node plugin/scripts/scan-lockfile.mjs . | node plugin/scripts/gate.mjs
+```
+
+Exit `0` if the gate passes, `1` if it fails, `2` if the tool itself errored —
+so a broken scan never reads as a green build.
+
+| Flag | Default | |
+|---|---|---|
+| `--fail-on high\|med\|low\|none` | `high` | `med` also catches `WARN`, since `TRIFECTA` is a risk posture rather than something milder than `LOW` |
+| `--fail-on-skipped` | off | Fail when any check could not run |
+| `--baseline b.json` | — | Suppress findings already recorded |
+| `--write-baseline b.json` | — | Record current findings and exit 0 |
+
+**A skipped check never fails the build by default, and never reads as clean.**
+Those are two different things. Failing on every skip would make an offline or
+air-gapped run impossible; letting a skip pass silently would mean a green build
+while a hundred packages went unchecked. So the gate prints the unchecked work
+either way, and only a fully-checked tree with nothing found gets the words
+"every check ran and found nothing". `--fail-on-skipped` turns the warning into
+an error when you want the stronger guarantee.
+
+**Baselines record findings, never skips.** Suppressing a skip would hide that a
+check stopped running. A skip you have accepted is expressed by *not* passing
+`--fail-on-skipped`, which is visible in your CI config, rather than buried in a
+file nobody rereads. Baseline entries carry the rule, file, line and message, so
+the suppression list can be reviewed by hand — a file of bare hashes is a file
+nobody audits. Entries that no longer match anything are reported so they can be
+pruned, and a finding that *moved* counts as new, because it is a row worth
+reading again.
+
+### GitHub Actions
+
+```yaml
+- run: node plugin/scripts/scan-lockfile.mjs . > report.json
+- run: node plugin/scripts/to-sarif.mjs report.json > aisec.sarif
+- uses: github/codeql-action/upload-sarif@v3
+  with: { sarif_file: aisec.sarif }
+- run: node plugin/scripts/gate.mjs report.json --baseline .aisec-baseline.json
+```
+
+Generate the baseline once, commit it, and the gate then fails only on findings
+newer than it:
+
+```bash
+node plugin/scripts/scan-lockfile.mjs . | node plugin/scripts/gate.mjs --write-baseline .aisec-baseline.json
+```
+
 ## Not in V1
 
-CI gating and a standalone CLI are V1.1. V1 is the plugin.
+A standalone CLI is V1.1. V1 is the plugin.
 
 ## Requirements
 
