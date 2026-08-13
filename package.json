@@ -4,7 +4,7 @@
   "description": "Security scanner for MCP servers and agent applications",
   "type": "module",
   "license": "MIT",
-  "private": true,
+  "private": false,
   "engines": {
     "node": ">=20"
   },
@@ -16,5 +16,26 @@
     "ajv": "^8.20.0",
     "ajv-formats": "^3.0.1",
     "vitest": "^3.0.0"
-  }
+  },
+  "bin": {
+    "aisec": "./bin/aisec.mjs"
+  },
+  "files": [
+    "bin/",
+    "plugin/",
+    "README.md",
+    "LICENSE"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Macchha/aisec.git"
+  },
+  "keywords": [
+    "security",
+    "mcp",
+    "sast",
+    "sca",
+    "agent-security",
+    "sarif"
+  ]
 }

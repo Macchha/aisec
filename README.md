@@ -19,10 +19,21 @@ server is safe.
 
 ## Install
 
+**As a Claude Code plugin** — the full tool, all 34 rules:
+
 ```
 /plugin marketplace add Macchha/aisec      # or a local path to this checkout
 /plugin install aisec
 ```
+
+**As a CLI** — the deterministic half, for CI and scripting:
+
+```bash
+npm install -g aisec
+aisec scan ./my-mcp-server
+```
+
+The two are not equivalent, and the difference is the point below.
 
 ## Usage
 
@@ -50,6 +61,41 @@ So after changing anything under `plugin/skills/` or `plugin/scripts/`:
 reinstall, **then start a fresh session**. Verified the hard way — a scan run
 during development silently used a superseded version of a rule that had been
 corrected on disk minutes earlier.
+
+## The CLI covers half the rules, on purpose
+
+The CLI runs the **deterministic scripts only**. Seventeen of the thirty-four
+rules need reading comprehension — whether a description is issuing orders,
+whether a parameter reaches a sink, whether a path check actually contains — and
+a CLI has no model to do that with.
+
+| | Plugin (`/aisec-review`) | CLI (`aisec scan`) |
+|---|---|---|
+| Config, unicode, dependencies | yes | yes |
+| MCP001, MCP003–MCP008 | yes | **no** |
+| MCP010–MCP015, MCP020–MCP025 | yes | **no** |
+
+**Every CLI report names the rules it did not run**, in `skipped[]`, every time —
+including on a report with no findings at all. A tool that quietly applies half
+its rule set while its own documentation advertises the whole set is the
+"unknown reads as clean" failure promoted to product level, and this project has
+hit that failure often enough to refuse it here.
+
+So the CLI never prints "clean". A run where every check completed and found
+nothing says *every check ran and found nothing*; anything less says what was
+missed.
+
+```
+aisec scan ./server                          # text, gate on HIGH
+aisec scan ./server --format sarif -o s.sarif
+aisec scan ./server --offline --fail-on med
+aisec scan ./server --write-baseline .aisec-baseline.json
+aisec scan ./server --baseline .aisec-baseline.json
+```
+
+Exit `0` gate passed, `1` gate failed, `2` aisec itself failed — in every
+format, so `--format sarif` stays usable in CI. All the gate flags from the
+[CI gating](#ci-gating) section apply.
 
 ## How findings are produced
 
