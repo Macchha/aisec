@@ -297,41 +297,63 @@ reading again.
 ### GitHub Actions
 
 ```yaml
-- run: node plugin/scripts/scan-lockfile.mjs . > report.json
-- run: node plugin/scripts/to-sarif.mjs report.json > aisec.sarif
+- name: Scan
+  run: npx aisec scan . --format sarif -o aisec.sarif --baseline .aisec-baseline.json
+  # A failing gate should still publish its findings — they matter most in the
+  # run that failed. The exit code comes from the step after the upload.
+  continue-on-error: true
+
 - uses: github/codeql-action/upload-sarif@v3
   with: { sarif_file: aisec.sarif }
-- run: node plugin/scripts/gate.mjs report.json --baseline .aisec-baseline.json
+
+- name: Gate
+  run: npx aisec scan . --baseline .aisec-baseline.json --fail-on high
 ```
+
+Use `aisec scan`, not an individual script under `plugin/scripts/`. Each script
+covers one input — configs, invisible characters, or dependencies — so running
+one alone produces a report that looks complete and is not. `scan` runs all
+three and merges what each of them could not check.
 
 Generate the baseline once, commit it, and the gate then fails only on findings
 newer than it:
 
 ```bash
-node plugin/scripts/scan-lockfile.mjs . | node plugin/scripts/gate.mjs --write-baseline .aisec-baseline.json
+npx aisec scan . --write-baseline .aisec-baseline.json
 ```
 
-## Not in V1
+Keep that file small and reviewed. Regenerating it to turn a red build green
+absorbs every new finding along with the old, which is the failure this tool
+exists to prevent. Prune stale entries instead — the gate lists them.
 
-A standalone CLI is V1.1. V1 is the plugin.
+aisec's own CI does exactly this; see `.github/workflows/ci.yml`.
 
 ## Requirements
 
-Node 20 or newer. **Zero runtime dependencies** — the only devDependency is
-vitest. Nothing in a scanned project is ever installed, resolved, or executed.
+Node 20 or newer. **Zero runtime dependencies.** The devDependencies are vitest
+and ajv (which validates the SARIF output against the official 2.1.0 schema in
+the test suite); none of them ship. Nothing in a scanned project is ever
+installed, resolved, or executed.
 
 ## Repository layout
 
 ```
+bin/aisec.mjs               ← the CLI entry point
 plugin/                     ← everything an install carries
   .claude-plugin/plugin.json
   commands/aisec-review.md
   skills/scanning-mcp-servers/   SKILL.md + references/
-  scripts/                       the deterministic scanners
+  scripts/                       the deterministic scanners, shared by both
+.aisec-baseline.json        ← aisec's own two accepted findings
+.github/workflows/ci.yml    ← tests on Node 20/22/24, plus aisec scanning aisec
 tests/                      ← not shipped
   fixtures/                      including a deliberately-exploitable server
 docs/                       ← not shipped
 ```
+
+The CLI and the plugin run the same scripts under `plugin/scripts/` rather than
+two implementations, so the two cannot drift on severities, rule IDs, or exit
+codes.
 
 The split is deliberate. `tests/fixtures/vulnerable-server/` contains a live
 prompt-injection payload and a fake credential; shipping it into every
