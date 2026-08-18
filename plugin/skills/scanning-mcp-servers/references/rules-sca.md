@@ -177,9 +177,11 @@ PKG_NEW it is a strong typosquat signal.
 
 **Detection**: Read weekly downloads from
 `https://api.npmjs.org/downloads/point/last-week/<name>` and report below 100.
-Reported at LOW. **Known limitation**: this figure is npm-only. PyPI packages
-always return `null` here, so the rule silently never fires for Python direct
-dependencies — a gap that belongs in `skipped[]` and is tracked for V1.1.
+Reported at LOW. **Scope**: this figure is npm-only, and the downloads API is
+best-effort even for npm. When no count comes back — every PyPI package, plus any
+npm package whose lookup failed or was rate-limited — the rule does not run, and
+the packages it could not check are named in `skipped[]`. It never reports an
+unchecked package as clean.
 
 **False positives**: Internal, niche, and recently-renamed packages all have low
 counts legitimately. A package that is popular but consumed mainly through a
@@ -211,9 +213,11 @@ machine that installs it.
 
 **Detection**: Read the `scripts` object of the package's latest version from the
 registry and report the presence of any of `preinstall`, `install`,
-`postinstall`. Reported at MED. **Known limitation**: npm-only, same as
-PKG_LOWDL — PyPI's equivalent (`setup.py` executing at build time) is not
-covered in V1.
+`postinstall`. Reported at MED. **Scope**: npm-only, same as PKG_LOWDL. PyPI's
+equivalent — `setup.py` executing at install time — is not detectable from the
+PyPI JSON API, which exposes no sdist contents, so the rule does not run for
+Python packages and names each one in `skipped[]`. Treat a Python dependency as
+un-assessed for install-time execution, not as free of it.
 
 **False positives**: Native modules legitimately need install-time compilation,
 and many well-known packages have benign postinstall steps. The finding says

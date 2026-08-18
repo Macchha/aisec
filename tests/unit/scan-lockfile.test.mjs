@@ -234,6 +234,63 @@ describe('direct dependency registry checks', () => {
     });
     expect(r.findings.find(x => x.id === 'PKG_UNKNOWN').confidence).toBe('HIGH');
   });
+
+  // PKG_LOWDL and INSTALL_SCRIPTS read fields only npm publishes. Before this, a null
+  // read as "checked, nothing found" — every PyPI dependency silently passed both rules
+  // with nothing in skipped[] to say so.
+  describe('rules whose data source did not answer', () => {
+    const noData = { deprecated: false, repoUrl: 'https://github.com/a/b',
+      publishedFirst: new Date(Date.now() - 600 * 86_400_000).toISOString(),
+      publishedLast: new Date().toISOString() };
+
+    it('reports PKG_LOWDL as not run when no download count came back', async () => {
+      vi.stubGlobal('fetch', vi.fn(async () => ({ ok: true, json: async () => ({ results: [] }) })));
+      const r = await scanDependencies({
+        lockfiles: [], offline: false,
+        directDeps: [{ ecosystem: 'PyPI', name: 'requests' }],
+        lookup: async () => meta({ ...noData, weeklyDownloads: null, hasInstallScripts: false }),
+      });
+      expect(ids(r)).not.toContain('PKG_LOWDL');
+      expect(r.skipped.join('\n')).toMatch(/PKG_LOWDL did not run.*requests/s);
+    });
+
+    it('reports INSTALL_SCRIPTS as not run rather than as passed', async () => {
+      vi.stubGlobal('fetch', vi.fn(async () => ({ ok: true, json: async () => ({ results: [] }) })));
+      const r = await scanDependencies({
+        lockfiles: [], offline: false,
+        directDeps: [{ ecosystem: 'PyPI', name: 'flask' }],
+        lookup: async () => meta({ ...noData, weeklyDownloads: 5000, hasInstallScripts: null }),
+      });
+      expect(ids(r)).not.toContain('INSTALL_SCRIPTS');
+      const text = r.skipped.join('\n');
+      expect(text).toMatch(/INSTALL_SCRIPTS did not run.*flask/s);
+      // The reason has to name the residual risk, or the line reads as housekeeping.
+      expect(text).toMatch(/setup\.py/);
+    });
+
+    it('says nothing when the registry did answer', async () => {
+      vi.stubGlobal('fetch', vi.fn(async () => ({ ok: true, json: async () => ({ results: [] }) })));
+      const r = await scanDependencies({
+        lockfiles: [], offline: false,
+        directDeps: [{ ecosystem: 'npm', name: 'lodash' }],
+        lookup: async () => meta({ ...noData, weeklyDownloads: 5000, hasInstallScripts: false }),
+      });
+      expect(r.skipped.join('\n')).not.toMatch(/PKG_LOWDL|INSTALL_SCRIPTS/);
+    });
+
+    it('aggregates one line per rule, with an exact count and a truncated name list', async () => {
+      vi.stubGlobal('fetch', vi.fn(async () => ({ ok: true, json: async () => ({ results: [] }) })));
+      const deps = Array.from({ length: 14 }, (_, i) => ({ ecosystem: 'PyPI', name: `pkg${i}` }));
+      const r = await scanDependencies({
+        lockfiles: [], offline: false, directDeps: deps,
+        lookup: async (name) => meta({ ...noData, name, weeklyDownloads: null, hasInstallScripts: null }),
+      });
+      const lines = r.skipped.filter(s => s.startsWith('PKG_LOWDL'));
+      expect(lines).toHaveLength(1);
+      expect(lines[0]).toMatch(/14 package\(s\)/);
+      expect(lines[0]).toMatch(/and 4 more/);
+    });
+  });
 });
 
 // ---------------------------------------------------------------------------

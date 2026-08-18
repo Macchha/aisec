@@ -115,3 +115,54 @@ describe('lookupPackage', () => {
     expect(m.publishedLast.startsWith('2026-01-01')).toBe(true);
   });
 });
+
+// null means nobody looked; false means the registry answered "no". Collapsing the two
+// is how PKG_LOWDL and INSTALL_SCRIPTS silently passed every PyPI package.
+describe('unavailable metadata is null, never a falsy default', () => {
+  it('leaves both npm-only fields null for PyPI', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => ok({
+      info: { version: '2.0.0', summary: 'x' },
+      releases: { '2.0.0': [{ upload_time_iso_8601: '2026-01-01T00:00:00Z' }] },
+    })));
+    const m = await lookupPackage('requests', 'PyPI');
+    expect(m.hasInstallScripts).toBeNull();
+    expect(m.weeklyDownloads).toBeNull();
+  });
+
+  it('leaves weeklyDownloads null when the npm downloads API fails', async () => {
+    vi.stubGlobal('fetch', vi.fn(async (url) => {
+      if (String(url).includes('api.npmjs.org')) throw new Error('rate limited');
+      return ok({
+        'dist-tags': { latest: '1.0.0' },
+        versions: { '1.0.0': { scripts: {} } },
+        time: { created: '2020-01-01T00:00:00Z', modified: '2026-01-01T00:00:00Z' },
+      });
+    }));
+    const m = await lookupPackage('lodash', 'npm');
+    expect(m.weeklyDownloads).toBeNull();
+    expect(m.hasInstallScripts).toBe(false); // this one *was* checked
+  });
+
+  it('leaves hasInstallScripts null when npm exposes no version manifest', async () => {
+    vi.stubGlobal('fetch', vi.fn(async (url) => {
+      if (String(url).includes('api.npmjs.org')) return ok({ downloads: 10 });
+      return ok({ 'dist-tags': {}, versions: {}, time: {} });
+    }));
+    const m = await lookupPackage('weird', 'npm');
+    expect(m.hasInstallScripts).toBeNull();
+  });
+
+  it('distinguishes a real false from an absent answer', async () => {
+    vi.stubGlobal('fetch', vi.fn(async (url) => {
+      if (String(url).includes('api.npmjs.org')) return ok({ downloads: 4200 });
+      return ok({
+        'dist-tags': { latest: '1.0.0' },
+        versions: { '1.0.0': { scripts: { test: 'vitest' } } },
+        time: { created: '2020-01-01T00:00:00Z', modified: '2026-01-01T00:00:00Z' },
+      });
+    }));
+    const m = await lookupPackage('lodash', 'npm');
+    expect(m.hasInstallScripts).toBe(false);
+    expect(m.weeklyDownloads).toBe(4200);
+  });
+});

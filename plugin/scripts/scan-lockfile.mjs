@@ -18,6 +18,23 @@ const MAX_ADVISORY_DETAILS = 100;
 const ADVISORY_CONCURRENCY = 5;
 const ADVISORY_DEADLINE_MS = 60_000;
 
+// Why a rule could not be applied to a package, for the skipped[] line. Both rules read
+// npm-only fields, so every PyPI dependency lands here — and an npm dependency does too
+// whenever the registry withheld the data.
+const UNCHECKED_REASON = {
+  PKG_LOWDL: 'download counts are published by npm only, and the npm downloads API is ' +
+    'best-effort — no popularity signal was available',
+  INSTALL_SCRIPTS: 'install-time hooks are read from npm version manifests only — ' +
+    'a PyPI sdist can still execute code at install time via setup.py',
+};
+
+// Long dependency lists get truncated, but the count above is always exact.
+const MAX_NAMES_LISTED = 10;
+function nameList(names) {
+  if (names.length <= MAX_NAMES_LISTED) return names.join(', ');
+  return `${names.slice(0, MAX_NAMES_LISTED).join(', ')} and ${names.length - MAX_NAMES_LISTED} more`;
+}
+
 // UNKNOWN maps to MED, not LOW: an advisory we could not rank is unranked, not harmless.
 // Mapping it down is the same silent-narrowing bug the queryBatch review caught.
 const VULN_SEV = { CRITICAL: 'HIGH', HIGH: 'HIGH', MODERATE: 'MED', MEDIUM: 'MED', LOW: 'LOW', UNKNOWN: 'MED' };
@@ -192,6 +209,9 @@ export async function scanDependencies({
   if (directDeps.length > 0 && offline) {
     report.skipped.push(`registry metadata checks skipped for ${directDeps.length} packages — offline mode`);
   } else {
+    // Per-rule gaps, accumulated across packages so the report carries one line per rule
+    // rather than one per dependency.
+    const unchecked = { PKG_LOWDL: [], INSTALL_SCRIPTS: [] };
     const targets = directDeps.slice(0, MAX_DIRECT_LOOKUPS);
     if (directDeps.length > targets.length) {
       report.skipped.push(
@@ -231,12 +251,19 @@ export async function scanDependencies({
           message: `${d.name} was first published less than 30 days ago`,
           hint: 'Very new packages carry elevated supply-chain risk.' });
       }
-      if (meta.weeklyDownloads !== null && meta.weeklyDownloads < 100) {
+      // Both of these are npm-only signals. A null means the registry never supplied the
+      // data, which is not the same as supplying a clean answer — collect the names and
+      // report them as unchecked below.
+      if (meta.weeklyDownloads === null) {
+        unchecked.PKG_LOWDL.push(d.name);
+      } else if (meta.weeklyDownloads < 100) {
         add({ id: 'PKG_LOWDL', severity: 'LOW', file, line: null,
           message: `${d.name} has very low weekly downloads (${meta.weeklyDownloads})`,
           hint: 'Few users means few eyes on the code.' });
       }
-      if (meta.hasInstallScripts) {
+      if (meta.hasInstallScripts === null) {
+        unchecked.INSTALL_SCRIPTS.push(d.name);
+      } else if (meta.hasInstallScripts) {
         add({ id: 'INSTALL_SCRIPTS', severity: 'MED', file, line: null,
           message: `${d.name} runs npm install scripts (preinstall/postinstall)`,
           hint: 'Install scripts execute arbitrary code at install time — a common supply-chain vector.' });
@@ -251,6 +278,13 @@ export async function scanDependencies({
           message: `${d.name} has not been updated in over 18 months`,
           hint: 'Possibly unmaintained.' });
       }
+    }
+
+    for (const [id, names] of Object.entries(unchecked)) {
+      if (names.length === 0) continue;
+      report.skipped.push(
+        `${id} did not run for ${names.length} package(s) — ${UNCHECKED_REASON[id]}. ` +
+        `Not checked: ${nameList(names)}.`);
     }
   }
 

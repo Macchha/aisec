@@ -20,10 +20,14 @@ export function validatePkgName(name, ecosystem) {
   return false;
 }
 
+// `hasInstallScripts` and `weeklyDownloads` are tri-state: true/false/number means the
+// registry answered, `null` means nobody looked. They default to null so a registry that
+// does not expose the data cannot pass for a registry that reported nothing wrong —
+// callers must branch on null and record a skip.
 const empty = (name, ecosystem) => ({
   name, ecosystem, found: false, lookupError: false,
   description: null, latestVersion: null, publishedFirst: null, publishedLast: null,
-  repoUrl: null, deprecated: false, hasInstallScripts: false, weeklyDownloads: null, vulns: [],
+  repoUrl: null, deprecated: false, hasInstallScripts: null, weeklyDownloads: null, vulns: [],
 });
 
 function cleanRepoUrl(raw) {
@@ -36,6 +40,11 @@ export function normalizeNpmMeta(name, doc, weeklyDownloads) {
   const latest = doc?.['dist-tags']?.latest ?? null;
   const ver = latest ? doc?.versions?.[latest] : null;
   const scripts = ver?.scripts ?? {};
+  // No version manifest means the install-script question was never asked. `false` here
+  // would claim we looked and found none.
+  const hasInstallScripts = ver
+    ? Boolean(scripts.preinstall || scripts.postinstall || scripts.install)
+    : null;
   return {
     ...empty(name, 'npm'),
     found: true,
@@ -45,11 +54,16 @@ export function normalizeNpmMeta(name, doc, weeklyDownloads) {
     publishedLast: doc?.time?.modified ?? null,
     repoUrl: cleanRepoUrl(doc?.repository?.url ?? doc?.repository),
     deprecated: Boolean(ver?.deprecated),
-    hasInstallScripts: Boolean(scripts.preinstall || scripts.postinstall || scripts.install),
+    hasInstallScripts,
     weeklyDownloads,
   };
 }
 
+// PyPI's JSON API exposes neither download counts nor install-time hooks: download stats
+// live in a separate BigQuery-backed service, and `setup.py` execution is only visible by
+// downloading and unpacking an sdist. Both fields therefore stay null — PKG_LOWDL and
+// INSTALL_SCRIPTS do not run for PyPI, and the caller reports them as skipped. Leaving
+// them at a falsy default would silently pass every Python package.
 export function normalizePyPIMeta(name, doc) {
   const info = doc?.info ?? {};
   const urls = info.project_urls ?? {};
