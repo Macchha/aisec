@@ -46,8 +46,13 @@ jobs:
         # via the verify step below.
         continue-on-error: true
 
+      # Code scanning upload needs a public repo or GitHub Advanced Security. On a
+      # private repo or a fork without it this returns "Resource not accessible by
+      # integration", which says nothing about the code being scanned — so it must
+      # not fail the build. The Gate step below is the real signal and stays strict.
       - name: Upload SARIF
         uses: github/codeql-action/upload-sarif@v3
+        continue-on-error: true
         with:
           sarif_file: aisec.sarif
 
