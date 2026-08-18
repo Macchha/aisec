@@ -1,0 +1,57 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node: ['20', '22', '24']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+      - run: npm ci
+      - run: npm test
+
+  # aisec ships a CI gate. Not running it against aisec's own tree would be the
+  # same claim the tool exists to stop people making.
+  self-scan:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      # No `npm ci`: the scan must not depend on installing anything, and aisec
+      # has no runtime dependencies. Anything installed here is attack surface
+      # the scanned tree does not otherwise carry.
+      - name: Scan
+        run: node bin/aisec.mjs scan . --format sarif -o aisec.sarif --baseline .aisec-baseline.json --fail-on high
+        # The gate's exit 1 must not skip the upload — findings are most useful
+        # in the run that failed. Exit 2 (aisec itself broke) still fails the job
+        # via the verify step below.
+        continue-on-error: true
+
+      - name: Upload SARIF
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: aisec.sarif
+
+      # Re-run for the exit code, now that the SARIF is safely uploaded. Text
+      # format so a failure is readable in the log without opening the artifact.
+      - name: Gate
+        run: node bin/aisec.mjs scan . --baseline .aisec-baseline.json --fail-on high

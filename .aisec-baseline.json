@@ -1,0 +1,25 @@
+{
+  "version": 1,
+  "createdAt": "2026-08-18T16:07:43.528Z",
+  "note": "Two deliberate zero-width spaces that exist so MCP002 has something to find. Both are test data, not defects. Nothing else belongs in this file: if a scan of aisec's own tree grows a finding, it should fail the build. Each entry records why it is here. If a baseline entry stops matching, the gate reports it as stale — prune it rather than regenerating this file wholesale, which would silently absorb real findings.",
+  "fingerprints": [
+    {
+      "fingerprint": "bf8a9653472c1e82",
+      "id": "MCP002",
+      "severity": "HIGH",
+      "file": "tests/fixtures/vulnerable-server/src/index.ts",
+      "line": 23,
+      "message": "invisible character(s) in source: U+200B (zero-width space)",
+      "why": "The vulnerable-server fixture is supposed to be vulnerable. This U+200B is the MCP002 test case."
+    },
+    {
+      "fingerprint": "9321b7ce2ddb8a38",
+      "id": "MCP002",
+      "severity": "HIGH",
+      "file": "tests/unit/scan-all.test.mjs",
+      "line": 56,
+      "message": "invisible character(s) in source: U+200B (zero-width space)",
+      "why": "Inline fixture asserting scan-all merges unicode findings. The character is the assertion."
+    }
+  ]
+}
