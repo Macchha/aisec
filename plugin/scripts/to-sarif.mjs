@@ -64,11 +64,29 @@ function resultFor(f) {
   return result;
 }
 
+// Most skips open with the thing they are about — "package.json: devDependencies were
+// not collected", ".: no agent config found". Anchor the result there when we can read
+// it, so the gap surfaces on the file it concerns.
+const SKIP_SUBJECT_RE = /^([^\s:]+):\s/;
+
+function skipLocation(text) {
+  const m = SKIP_SUBJECT_RE.exec(text);
+  const subject = m && m[1] !== '.' && looksLikePath(m[1]) ? m[1] : '.';
+  return [{ physicalLocation: { artifactLocation: { uri: subject } } }];
+}
+
 function skippedResult(text) {
   return {
     ruleId: SKIPPED_RULE_ID,
     level: 'warning',
     message: { text },
+    // SARIF permits a result with no location, and the schema validates one happily.
+    // GitHub code scanning does not: it rejects the *entire* submission with
+    // "locationFromSarifResult: expected at least one location", so three location-less
+    // skips took every real finding down with them and the Security tab stayed empty.
+    // The skips exist to keep gaps visible; emitting them in a form that voids the whole
+    // report is that failure inverted.
+    locations: skipLocation(text),
     properties: { source: 'rule', aisecSeverity: 'WARN' },
     partialFingerprints: { aisecFinding: skipFingerprint(text) },
   };

@@ -180,3 +180,36 @@ describe('input validation', () => {
     expect(run(s).invocations[0].toolExecutionNotifications).toEqual([]);
   });
 });
+
+// The SARIF schema permits a result with no location; GitHub code scanning does not,
+// and it rejects the whole submission rather than the offending result. Three
+// location-less skips once took every real finding down with them.
+describe('every result carries a location, because a consumer may reject the file', () => {
+  it('gives skipped results a location', () => {
+    const s = toSarif({
+      findings: [f()],
+      skipped: ['model-judgment rules did not run - the CLI runs the deterministic scripts'],
+    });
+    for (const r of results(s)) {
+      expect(r.locations?.length, `${r.ruleId} has no location`).toBeGreaterThan(0);
+    }
+  });
+
+  it('anchors a skip to the file it names', () => {
+    const s = toSarif({
+      findings: [],
+      skipped: ['package.json: devDependencies were not collected'],
+    });
+    expect(results(s)[0].locations[0].physicalLocation.artifactLocation.uri).toBe('package.json');
+  });
+
+  it('falls back to the scan root when the skip names no file', () => {
+    const s = toSarif({ findings: [], skipped: ['.: no agent config found'] });
+    expect(results(s)[0].locations[0].physicalLocation.artifactLocation.uri).toBe('.');
+  });
+
+  it('does not invent a path from a package name', () => {
+    const s = toSarif({ findings: [], skipped: ['lodash: registry lookup failed'] });
+    expect(results(s)[0].locations[0].physicalLocation.artifactLocation.uri).toBe('.');
+  });
+});

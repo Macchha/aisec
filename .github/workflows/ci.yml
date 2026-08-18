@@ -46,13 +46,14 @@ jobs:
         # via the verify step below.
         continue-on-error: true
 
-      # Code scanning upload needs a public repo or GitHub Advanced Security. On a
-      # private repo or a fork without it this returns "Resource not accessible by
-      # integration", which says nothing about the code being scanned — so it must
-      # not fail the build. The Gate step below is the real signal and stays strict.
+      # Strict on push, tolerant on pull_request. A PR from a fork has no
+      # security-events: write and fails with "Resource not accessible by integration",
+      # which says nothing about the code — but on main this step is the only thing that
+      # checks aisec emits SARIF that GitHub will actually accept, and blanket
+      # continue-on-error already let a rejected upload pass as green once.
       - name: Upload SARIF
         uses: github/codeql-action/upload-sarif@v3
-        continue-on-error: true
+        continue-on-error: ${{ github.event_name == 'pull_request' }}
         with:
           sarif_file: aisec.sarif
 
