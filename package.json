@@ -1,9 +1,12 @@
 {
-  "name": "aisec",
+  "name": "@macchha/aisec",
   "version": "0.1.0",
   "description": "Security scanner for MCP servers and agent applications",
   "type": "module",
   "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  },
   "private": false,
   "engines": {
     "node": ">=20"
