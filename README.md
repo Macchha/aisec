@@ -19,7 +19,7 @@ server is safe.
 
 ## Install
 
-**As a Claude Code plugin** — the full tool, all 34 rules:
+**As a Claude Code plugin** — the full tool, all 37 rules:
 
 ```
 /plugin marketplace add Macchha/aisec      # or a local path to this checkout
@@ -70,7 +70,7 @@ corrected on disk minutes earlier.
 
 ## The CLI covers half the rules, on purpose
 
-The CLI runs the **deterministic scripts only**. Seventeen of the thirty-four
+The CLI runs the **deterministic scripts only**. Nineteen of the thirty-seven
 rules need reading comprehension — whether a description is issuing orders,
 whether a parameter reaches a sink, whether a path check actually contains — and
 a CLI has no model to do that with.
