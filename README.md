@@ -29,8 +29,12 @@ server is safe.
 **As a CLI** — the deterministic half, for CI and scripting:
 
 ```bash
-npx github:Macchha/aisec scan ./my-mcp-server
+npx @macchha/aisec scan ./my-mcp-server        # one-shot
+npm i -g @macchha/aisec && aisec scan ./srv    # or install the `aisec` command
 ```
+
+The package is scoped because `aisec` is unclaimable on npm — the registry
+rejects it as too close to `anser`. The command it installs is `aisec`.
 
 Or from a checkout — no install step, since aisec has no runtime dependencies:
 
@@ -304,7 +308,7 @@ reading again.
 
 ```yaml
 - name: Scan
-  run: npx github:Macchha/aisec scan . --format sarif -o aisec.sarif --baseline .aisec-baseline.json
+  run: npx @macchha/aisec scan . --format sarif -o aisec.sarif --baseline .aisec-baseline.json
   # A failing gate should still publish its findings — they matter most in the
   # run that failed. The exit code comes from the step after the upload.
   continue-on-error: true
@@ -313,7 +317,7 @@ reading again.
   with: { sarif_file: aisec.sarif }
 
 - name: Gate
-  run: npx github:Macchha/aisec scan . --baseline .aisec-baseline.json --fail-on high
+  run: npx @macchha/aisec scan . --baseline .aisec-baseline.json --fail-on high
 ```
 
 Use `aisec scan`, not an individual script under `plugin/scripts/`. Each script
@@ -325,7 +329,7 @@ Generate the baseline once, commit it, and the gate then fails only on findings
 newer than it:
 
 ```bash
-npx github:Macchha/aisec scan . --write-baseline .aisec-baseline.json
+npx @macchha/aisec scan . --write-baseline .aisec-baseline.json
 ```
 
 Keep that file small and reviewed. Regenerating it to turn a red build green
