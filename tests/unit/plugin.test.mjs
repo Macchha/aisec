@@ -54,6 +54,30 @@ describe('README', () => {
   });
 });
 
+describe('published package', () => {
+  // npm 11 silently DROPS a bin entry whose path starts with './' — it warns
+  // ("script name bin/aisec.mjs was invalid and removed") and publishes anyway.
+  // The package installs, `npx aisec` resolves it, and nothing runs. Caught by
+  // hand at the publish gate; nothing in the suite was looking.
+  it('declares a bin path npm will not reject', () => {
+    const bin = json('package.json').bin;
+    expect(bin).toBeTruthy();
+    for (const target of Object.values(bin)) {
+      expect(target.startsWith('./')).toBe(false);
+      expect(existsSync(target)).toBe(true);
+    }
+  });
+
+  it('ships every path the bin and files array depend on', () => {
+    const pkg = json('package.json');
+    for (const f of pkg.files) expect(existsSync(f.replace(/\/$/, ''))).toBe(true);
+    // A bin outside `files` is absent from the tarball however valid it looks here.
+    for (const target of Object.values(pkg.bin)) {
+      expect(pkg.files.some(f => target.startsWith(f.replace(/\/$/, '')))).toBe(true);
+    }
+  });
+});
+
 describe('runtime dependencies', () => {
   it('has none', () => {
     expect(json('package.json').dependencies ?? {}).toEqual({});
